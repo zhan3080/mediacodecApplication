@@ -109,6 +109,7 @@ public class DecodeActivity extends Activity {
 
     private void renderToSurface() {
         byte[] mTest264;
+        Log.i(TAG, "renderToSurface TEST_VIDEO = " + TEST_VIDEO);
         File f264 = new File(TEST_VIDEO);
         FileInputStream is264;
         int mSPSLen = 0;

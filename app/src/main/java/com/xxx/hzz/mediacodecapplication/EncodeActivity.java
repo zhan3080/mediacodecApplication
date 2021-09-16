@@ -79,7 +79,7 @@ public class EncodeActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        Log.i(TAG, "onActivityResult requestCode:" + requestCode + ",resultCode:" + resultCode);
+        Log.i(TAG, "onActivityResult requestCode:" + requestCode + ",resultCode:" + resultCode + ", data:" + data);
         if (requestCode != REQUEST_CODE || resultCode != RESULT_OK || data == null) {
             return;
         }
@@ -88,7 +88,8 @@ public class EncodeActivity extends Activity {
             return;
         }
         DisplayMetrics dm = getResources().getDisplayMetrics();
-        mScreenCapture = new Encoder(dm.widthPixels, dm.heightPixels, mediaProjection);
+        mScreenCapture = new Encoder(dm.widthPixels, dm.heightPixels,dm.densityDpi, mediaProjection);
+//        mScreenCapture = new Encoder(592, 1080, mediaProjection);
         mScreenCapture.setOnCaptureVideoCallback(mVideoCallback);
         mScreenCapture.startCapture();
     }

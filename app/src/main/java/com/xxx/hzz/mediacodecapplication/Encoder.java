@@ -7,6 +7,9 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.projection.MediaProjection;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 
@@ -30,18 +33,33 @@ public class Encoder {
     private Thread mCaptureThread;
     private int mWidth;
     private int mHeight;
+    private int mDensityDpi;
     private boolean isSaveLocal = true;
     private boolean isQuitting = false;
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private static final long TIMEOUT_US = 33333;
 
-    private String videoPath = "sdcard/mediacodecVideo.h264";
+//    private String videoPath = "sdcard/mediacodecVideo.h264";
+    private static final String videoPath = "/sdcard/test/tmp.h264";
+
     private OutputStream mVideoStream = null;
 
+    private Handler mHandler = new Handler(Looper.getMainLooper()){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            Log.i(TAG, "handleMessage msg.what：" + msg.what);
+            if (msg.what == 100) {
+                encodeStart();
+            }
+        }
+    };
 
-    public Encoder(int w, int h, MediaProjection p) {
+
+    public Encoder(int w, int h, int densityDpi, MediaProjection p) {
         mWidth = w;
         mHeight = h;
+        mDensityDpi = densityDpi;
         mMediaProjection = p;
     }
 
@@ -56,9 +74,11 @@ public class Encoder {
             mCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
             mCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             Surface surface = mCodec.createInputSurface();
-            mVirtualDisplay = mMediaProjection.createVirtualDisplay("surafce", mWidth, mHeight, 1,
+            Log.d(TAG, "created input surface: " + surface);
+            mVirtualDisplay = mMediaProjection.createVirtualDisplay("surafce", mWidth, mHeight, mDensityDpi,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, surface, null, null);
-
+            Log.d(TAG, "created createVirtualDisplay: " + mVirtualDisplay);
+            mHandler.sendEmptyMessageDelayed(100,3000);
         } catch (Exception e) {
             e.printStackTrace();
             mCodec = null;
@@ -82,7 +102,7 @@ public class Encoder {
         isCapturing = true;
 
 //        encodeAsync();
-        encodeStart();
+//        encodeStart();
         if (isSaveLocal) {
             if (mVideoStream == null) {
                 File videoFile = new File(videoPath);
@@ -103,6 +123,7 @@ public class Encoder {
      * Android5.0之后异步获取
      */
     private void encodeAsync() {
+        Log.i(TAG, "encodeAsync");
         mCaptureThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -137,6 +158,7 @@ public class Encoder {
     }
 
     private void encodeStart() {
+        Log.i(TAG, "encodeAsync");
         mCaptureThread = new Thread(new Runnable() {
             @Override
             public void run() {
