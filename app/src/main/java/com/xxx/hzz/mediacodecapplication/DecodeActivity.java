@@ -39,9 +39,8 @@ public class DecodeActivity extends Activity {
     private MediaCodec mMC;
     private static final String TEST_VIDEO = "/sdcard/test/tmp.h264";
 
-    private ByteBuffer[] inputBuffers;
-    private ByteBuffer[] outputBuffers;
     private boolean mStop = false;
+    // 设置获取时间
     private static final int TIMEOUT_US = 16000;
 
     @Override
@@ -139,7 +138,7 @@ public class DecodeActivity extends Activity {
         // pps（00 00 00 01 68 或者 00 00 01 68）
         // I帧（00 00 00 01 65 或者 00 00 01 65）
 
-        // 这里没有判断sps数据帧，因为一般sps pps是同时出现，判断出pps，签名的数据就是sps（如果实际使用有需求，根据00 00 00 01 67判断出来）
+        // 这里没有判断sps数据帧，因为一般sps pps是同时出现，判断出pps，前面的数据就是sps（如果实际使用有需求，根据00 00 00 01 67判断出来）
         // sps判断
         for (start = mOffset264; start < mTest264.length - 4; start++) {
             if ((mTest264[start] == 0) && (mTest264[start + 1] == 0) && (mTest264[start + 2] == 0) && (mTest264[start + 3] == 1) && ((mTest264[start + 4] & 0x1f) == 8)) {
@@ -212,6 +211,8 @@ public class DecodeActivity extends Activity {
 //        }
         startDrawThread();
         while (!mStop) {
+            // 这个mOffset264就是视频帧（首帧就是i帧）的起点，要找到下一个起点（00000001），下一个起点-mOffset264就是这个帧的长度（frameLen）
+            // start从mOffset264 + 1开始（因为后面每一帧都是00000001开始，不像前面有0000000167 0000000168 0000000165明显标志）
             for (start = mOffset264 + 1; start < mTest264.length - 4; start++) {
                 if ((mTest264[start] == 0) && (mTest264[start + 1] == 0) && (mTest264[start + 2] == 0) && (mTest264[start + 3] == 1)) {
                     break;
@@ -222,10 +223,13 @@ public class DecodeActivity extends Activity {
                 break;
             }
             frameLen = start - mOffset264;
+            // 获取可用buffer，获取到的是bufer队列的index，轮询时间TIMEOUT_US
             inputBufferIndex = mMC.dequeueInputBuffer(TIMEOUT_US);
             if (inputBufferIndex > 0) {
                 ByteBuffer buffer = mMC.getInputBuffer(inputBufferIndex);
+                // 把需要解码的数据填充到buffer里
                 buffer.put(mTest264, mOffset264, frameLen);
+                // 再把buffer放回队列里（通过index），再通过outputbuffer就能拿到解码后的数据（startDrawThread线程里）
                 mMC.queueInputBuffer(inputBufferIndex, 0, frameLen, presentationTimeUs, 0);
                 Log.i(TAG, "Feed H264 Frame With Size = " + frameLen + ", file pos=" + mOffset264);
             } else {
@@ -283,7 +287,10 @@ public class DecodeActivity extends Activity {
             }
             try {
                 outputBufferIndex = mMC.dequeueOutputBuffer(bufferInfo, 10000);
+                // 获取到的是解码后的buffer，也是通过index
                 if (outputBufferIndex > 0) {
+                    // 释放buffer，如果创建mediacodec时候配置里surface，则设置true，解码后到数据就会在该surface上显示了
+                    // 如：前面初始化mMC.configure(format, mSurface, null, 0)
                     mMC.releaseOutputBuffer(outputBufferIndex, true);
                 } else {
                     Log.i(TAG, "drawFrame outputBufferIndex:" + outputBufferIndex);
