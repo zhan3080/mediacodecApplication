@@ -71,9 +71,11 @@ public class EncodeActivity extends Activity {
     }
 
     private void request() {
-        mediaProjectionManager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
-        Intent intent = mediaProjectionManager.createScreenCaptureIntent();
-        startActivityForResult(intent, REQUEST_CODE);
+//        mediaProjectionManager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+//        Intent intent = mediaProjectionManager.createScreenCaptureIntent();
+//        startActivityForResult(intent, REQUEST_CODE);
+        DataSender sender = new DataSender();
+        sender.start();
     }
 
     @Override

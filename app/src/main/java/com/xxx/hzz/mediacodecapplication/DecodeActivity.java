@@ -66,12 +66,14 @@ public class DecodeActivity extends Activity {
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mDecodecListenerThread = new Thread() {
-                    public void run() {
-                        renderToSurface();
-                    }
-                };
-                mDecodecListenerThread.start();
+//                mDecodecListenerThread = new Thread() {
+//                    public void run() {
+//                        renderToSurface();
+//                    }
+//                };
+//                mDecodecListenerThread.start();
+                DataReceiverThread dataReceiver = new DataReceiverThread();
+                dataReceiver.start();
             }
         });
         rootView.addView(startBtn);
