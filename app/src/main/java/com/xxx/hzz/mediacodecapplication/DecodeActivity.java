@@ -43,6 +43,26 @@ public class DecodeActivity extends Activity {
     // 设置获取时间
     private static final int TIMEOUT_US = 16000;
 
+    private int mPresentationTimeUs = 0;
+
+    private IReceiveDataCallback dataCallback = new IReceiveDataCallback() {
+        @Override
+        public void onDataPrepare(byte[] sps, byte[] pps) {
+            mediacodecCreate(sps, pps);
+            mPresentationTimeUs = 0;
+        }
+
+        @Override
+        public void onDataReceive(byte[] data, int len) {
+            mediacodecDataInput(data, len);
+        }
+
+        @Override
+        public void onDataStop() {
+            mediacodecDestroy();
+        }
+    };
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,6 +93,7 @@ public class DecodeActivity extends Activity {
 //                };
 //                mDecodecListenerThread.start();
                 DataReceiverThread dataReceiver = new DataReceiverThread();
+                dataReceiver.setDataCallback(dataCallback);
                 dataReceiver.start();
             }
         });
@@ -225,7 +246,7 @@ public class DecodeActivity extends Activity {
                 break;
             }
             frameLen = start - mOffset264;
-            // 获取可用buffer，获取到的是bufer队列的index，轮询时间TIMEOUT_US
+            // 获取可用buffepresentationTimeUsr，获取到的是bufer队列的index，轮询时间TIMEOUT_US
             inputBufferIndex = mMC.dequeueInputBuffer(TIMEOUT_US);
             if (inputBufferIndex > 0) {
                 ByteBuffer buffer = mMC.getInputBuffer(inputBufferIndex);
@@ -270,6 +291,87 @@ public class DecodeActivity extends Activity {
         }
 
     }
+
+    private void mediacodecCreate(byte[] sps, byte[] pps) {
+        if (mMC != null) {
+            return;
+        }
+        try {
+            // 创建解码器
+            mMC = MediaCodec.createDecoderByType("video/avc");
+        } catch (IOException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+            return;
+        }
+        if (mMC == null) {
+            return;
+        }
+        Log.i(TAG, "createByCodecName");
+        MediaFormat format = MediaFormat.createVideoFormat("video/avc", 1080, 1920);
+        format.setByteBuffer("csd-0", ByteBuffer.wrap(sps, 0, sps.length));
+        format.setByteBuffer("csd-1", ByteBuffer.wrap(pps, 0, pps.length));
+
+        mMC.configure(format, mSurface, null, 0);
+        mMC.start();
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        Log.i(TAG, "start ok");
+        startDrawThread();
+    }
+
+    private void mediacodecDataInput(byte[] data, int len) {
+        // 获取可用buffer，获取到的是bufer队列的index，轮询时间TIMEOUT_US
+        if(mMC == null){
+            return;
+        }
+        int inputBufferIndex = mMC.dequeueInputBuffer(TIMEOUT_US);
+        if (inputBufferIndex > 0) {
+            ByteBuffer buffer = mMC.getInputBuffer(inputBufferIndex);
+            // 把需要解码的数据填充到buffer里
+            buffer.put(data, 0, len);
+            // 再把buffer放回队列里（通过index），再通过outputbuffer就能拿到解码后的数据（startDrawThread线程里）
+            mMC.queueInputBuffer(inputBufferIndex, 0, len, mPresentationTimeUs, 0);
+            Log.i(TAG, "Feed H264 Frame With Size = " + len);
+        } else {
+            // todo 超时的处理
+        }
+        mPresentationTimeUs += TIMEOUT_US;
+
+        try {
+            Thread.sleep(16);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void mediacodecDestroy() {
+        if (mMC == null) {
+            return;
+        }
+        try {
+            mMC.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            mMC.stop();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            mMC.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        mMC = null;
+    }
+
 
     private void startDrawThread() {
         new Thread() {

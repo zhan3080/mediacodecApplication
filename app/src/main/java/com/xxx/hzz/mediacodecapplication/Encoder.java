@@ -40,12 +40,12 @@ public class Encoder {
     private static final long TIMEOUT_US = 33333;
     private DataSender mDatasender = new DataSender();
 
-//    private String videoPath = "sdcard/mediacodecVideo.h264";
-    private static final String videoPath = "/sdcard/test/tmp.h264";
+    //    private String videoPath = "sdcard/mediacodecVideo.h264";
+    private static final String videoPath = "/sdcard/source.h264";
 
     private OutputStream mVideoStream = null;
 
-    private Handler mHandler = new Handler(Looper.getMainLooper()){
+    private Handler mHandler = new Handler(Looper.getMainLooper()) {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
@@ -79,7 +79,7 @@ public class Encoder {
             mVirtualDisplay = mMediaProjection.createVirtualDisplay("surafce", mWidth, mHeight, mDensityDpi,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, surface, null, null);
             Log.d(TAG, "created createVirtualDisplay: " + mVirtualDisplay);
-            mHandler.sendEmptyMessageDelayed(100,3000);
+            mHandler.sendEmptyMessageDelayed(100, 3000);
         } catch (Exception e) {
             e.printStackTrace();
             mCodec = null;
@@ -104,20 +104,20 @@ public class Encoder {
 
 //        encodeAsync();
 //        encodeStart();
-//        if (isSaveLocal) {
-//            if (mVideoStream == null) {
-//                File videoFile = new File(videoPath);
-//                if (videoFile.exists()) {
-//                    videoFile.delete();
-//                }
-//                try {
-//                    videoFile.createNewFile();
-//                    mVideoStream = new FileOutputStream(videoFile);
-//                } catch (Exception e) {
-//                    Log.w(TAG, e);
-//                }
-//            }
-//        }
+        if (isSaveLocal) {
+            if (mVideoStream == null) {
+                File videoFile = new File(videoPath);
+                if (videoFile.exists()) {
+                    videoFile.delete();
+                }
+                try {
+                    videoFile.createNewFile();
+                    mVideoStream = new FileOutputStream(videoFile);
+                } catch (Exception e) {
+                    Log.w(TAG, e);
+                }
+            }
+        }
     }
 
     /**
@@ -180,22 +180,22 @@ public class Encoder {
                         MediaFormat format = mCodec.getOutputFormat();
                         ByteBuffer buffer1 = format.getByteBuffer("csd-0");
                         ByteBuffer buffer2 = format.getByteBuffer("csd-1");
-//                        if (mVideoStream != null) {
-                            byte[] sps = new byte[buffer1.capacity()];
-                            byte[] pps = new byte[buffer2.capacity()];
-                            buffer1.get(sps, 0, sps.length);
-                            buffer2.get(pps, 0, pps.length);
-                            Log.i(TAG, "mCaptureThread sps = " + sps.toString() + ", len:" + sps.length);
-                            Log.i(TAG, "mCaptureThread pps = " + pps.toString() + ", len:" + pps.length);
-//                            try {
-//                                mVideoStream.write(sps);
-//                                mVideoStream.write(pps);
-//                            } catch (Exception e) {
-//                                e.printStackTrace();
-//                            }
-                            mDatasender.sendData(sps,0,sps.length);
-                            mDatasender.sendData(pps,0,pps.length);
-//                        }
+                        byte[] sps = new byte[buffer1.capacity()];
+                        byte[] pps = new byte[buffer2.capacity()];
+                        buffer1.get(sps, 0, sps.length);
+                        buffer2.get(pps, 0, pps.length);
+                        Log.i(TAG, "mCaptureThread sps = " + sps.toString() + ", len:" + sps.length);
+                        Log.i(TAG, "mCaptureThread pps = " + pps.toString() + ", len:" + pps.length);
+                        if (mVideoStream != null) {
+                            try {
+                                mVideoStream.write(sps);
+                                mVideoStream.write(pps);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        mDatasender.sendData(sps, 0, sps.length);
+                        mDatasender.sendData(pps, 0, pps.length);
                     } else if (index == MediaCodec.INFO_TRY_AGAIN_LATER) {
                         //todo
                     } else if (index > 0) {
@@ -212,27 +212,27 @@ public class Encoder {
                         }
                         byte[] buff = new byte[mBufferInfo.size];
                         encodedData.get(buff);
-//                        if (mVideoStream != null) {
-//                            try {
-//                                mVideoStream.write(buff, 0, mBufferInfo.size);
-//                            } catch (Exception e) {
-//                                Log.w(TAG, e);
-//                            }
-//                        }
-                        mDatasender.sendData(buff,0,mBufferInfo.size);
+                        if (mVideoStream != null) {
+                            try {
+                                mVideoStream.write(buff, 0, mBufferInfo.size);
+                            } catch (Exception e) {
+                                Log.w(TAG, e);
+                            }
+                        }
+                        mDatasender.sendData(buff, 0, mBufferInfo.size);
 
                         encodedData.clear();
                         mCodec.releaseOutputBuffer(index, false);
                     }
                 }
-
-//                if (mVideoStream != null) {
-//                    try {
-//                        mVideoStream.close();
-//                    } catch (IOException e) {
-//                        Log.w(TAG, e);
-//                    }
-//                }
+                Log.i(TAG, "encodeStart stop");
+                if (mVideoStream != null) {
+                    try {
+                        mVideoStream.close();
+                    } catch (IOException e) {
+                        Log.w(TAG, e);
+                    }
+                }
                 mDatasender.close();
 
             }

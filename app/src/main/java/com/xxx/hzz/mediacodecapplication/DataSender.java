@@ -13,7 +13,7 @@ import java.net.Socket;
 public class DataSender extends Thread{
     public static final String TAG = "DataSender";
     private static final int SERVER_PORT = 8010;
-    private static final String SERVER_IP = "192.168.205.103";
+    private static final String SERVER_IP = "192.168.205.110";
     private Socket mSocket = null;
     private OutputStream mOutputStream = null;
 
@@ -79,22 +79,26 @@ public class DataSender extends Thread{
     }
 
     public void close(){
+        Log.i(TAG, "close mOutputStream:" + mOutputStream + ", mSocket:" + mSocket);
         if(mOutputStream != null){
             try{
+                mOutputStream.flush();
                 mOutputStream.close();
                 mOutputStream = null;
             }catch (Exception e){
                 Log.w(TAG,e);
             }
         }
-        if(mSocket != null){
+        if(mSocket != null && !mSocket.isClosed()){
             try{
+                mSocket.shutdownOutput();
                 mSocket.close();
                 mSocket = null;
             }catch (Exception e){
                 Log.w(TAG,e);
             }
         }
+        mSocket = null;
     }
 
 }
