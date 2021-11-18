@@ -254,7 +254,7 @@ public class DecodeActivity extends Activity {
                 buffer.put(mTest264, mOffset264, frameLen);
                 // 再把buffer放回队列里（通过index），再通过outputbuffer就能拿到解码后的数据（startDrawThread线程里）
                 mMC.queueInputBuffer(inputBufferIndex, 0, frameLen, presentationTimeUs, 0);
-                Log.i(TAG, "Feed H264 Frame With Size = " + frameLen + ", file pos=" + mOffset264);
+//                Log.i(TAG, "Feed H264 Frame With Size = " + frameLen + ", file pos=" + mOffset264);
             } else {
                 // todo 超时的处理
             }
@@ -331,18 +331,18 @@ public class DecodeActivity extends Activity {
             return;
         }
         int inputBufferIndex = mMC.dequeueInputBuffer(TIMEOUT_US);
+//        Log.i(TAG, "mediacodecDataInput dequeueInputBuffer inputBufferIndex " + inputBufferIndex);
         if (inputBufferIndex > 0) {
             ByteBuffer buffer = mMC.getInputBuffer(inputBufferIndex);
             // 把需要解码的数据填充到buffer里
             buffer.put(data, 0, len);
             // 再把buffer放回队列里（通过index），再通过outputbuffer就能拿到解码后的数据（startDrawThread线程里）
             mMC.queueInputBuffer(inputBufferIndex, 0, len, mPresentationTimeUs, 0);
-            Log.i(TAG, "Feed H264 Frame With Size = " + len);
+//            Log.i(TAG, "Feed H264 Frame With Size = " + len);
         } else {
             // todo 超时的处理
         }
         mPresentationTimeUs += TIMEOUT_US;
-
         try {
             Thread.sleep(16);
         } catch (Exception e) {
@@ -397,7 +397,7 @@ public class DecodeActivity extends Activity {
                     // 如：前面初始化mMC.configure(format, mSurface, null, 0)
                     mMC.releaseOutputBuffer(outputBufferIndex, true);
                 } else {
-                    Log.i(TAG, "drawFrame outputBufferIndex:" + outputBufferIndex);
+//                    Log.i(TAG, "drawFrame outputBufferIndex:" + outputBufferIndex);
                 }
             } catch (Exception e) {
 

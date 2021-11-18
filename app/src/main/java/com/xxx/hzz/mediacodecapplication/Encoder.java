@@ -34,7 +34,7 @@ public class Encoder {
     private int mWidth;
     private int mHeight;
     private int mDensityDpi;
-    private boolean isSaveLocal = true;
+    private boolean isSaveLocal = false;
     private boolean isQuitting = false;
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private static final long TIMEOUT_US = 33333;
@@ -51,7 +51,11 @@ public class Encoder {
             super.handleMessage(msg);
             Log.i(TAG, "handleMessage msg.what：" + msg.what);
             if (msg.what == 100) {
-                encodeStart();
+                if (mDatasender != null && mDatasender.isSendReady()) {
+                    encodeStart();
+                    return;
+                }
+                mHandler.sendEmptyMessageDelayed(100, 100);
             }
         }
     };
@@ -87,12 +91,19 @@ public class Encoder {
     }
 
 
+    private void initSendThread() {
+        if (mDatasender == null) {
+            mDatasender = new DataSender();
+        }
+        mDatasender.start();
+    }
+
     public void startCapture() {
         if (isCapturing) {
             Log.w(TAG, "startCapture ignore 1");
             return;
         }
-
+        initSendThread();
         initEncoder();
         if (mCodec == null) {
             Log.w(TAG, "startCapture ignore 2");
@@ -160,8 +171,6 @@ public class Encoder {
 
     private void encodeStart() {
         Log.i(TAG, "encodeAsync");
-        mDatasender = new DataSender();
-        mDatasender.start();
         mCaptureThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -174,7 +183,7 @@ public class Encoder {
                         return;
                     }
                     int index = mCodec.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
-                    Log.i(TAG, "mCaptureThread index = " + index);
+//                    Log.i(TAG, "mCaptureThread index = " + index);
                     if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         //todo sps pps
                         MediaFormat format = mCodec.getOutputFormat();
@@ -194,8 +203,8 @@ public class Encoder {
                                 e.printStackTrace();
                             }
                         }
-                        mDatasender.sendData(sps, 0, sps.length);
-                        mDatasender.sendData(pps, 0, pps.length);
+                        mDatasender.sendData(0, sps, 0, sps.length);
+                        mDatasender.sendData(1, pps, 0, pps.length);
                     } else if (index == MediaCodec.INFO_TRY_AGAIN_LATER) {
                         //todo
                     } else if (index > 0) {
@@ -203,7 +212,7 @@ public class Encoder {
                         ByteBuffer encodedData = outbuffers[index];
                         byte flag = encodedData.get(4);
                         flag &= 0xf;
-                        Log.i(TAG, "mCaptureThread flag = " + flag);
+//                        Log.i(TAG, "mCaptureThread flag = " + flag);
                         if (flag == 7) {
                             Log.i(TAG, "sps pps len = " + mBufferInfo.size);
                             encodedData.clear();
@@ -219,7 +228,7 @@ public class Encoder {
                                 Log.w(TAG, e);
                             }
                         }
-                        mDatasender.sendData(buff, 0, mBufferInfo.size);
+                        mDatasender.sendData(2, buff, 0, mBufferInfo.size);
 
                         encodedData.clear();
                         mCodec.releaseOutputBuffer(index, false);
@@ -249,6 +258,9 @@ public class Encoder {
 
     public void stopCapture() {
         Log.i(TAG, "stopCapture");
+        if (mHandler != null && mHandler.hasMessages(100)) {
+            mHandler.removeMessages(100);
+        }
         stopEncode();
         isCapturing = false;
         if (mVirtualDisplay != null) {
@@ -263,6 +275,10 @@ public class Encoder {
             mCodec.stop();
             mCodec.release();
             mCodec = null;
+        }
+        if (mDatasender != null) {
+            mDatasender.close();
+            mDatasender = null;
         }
     }
 
