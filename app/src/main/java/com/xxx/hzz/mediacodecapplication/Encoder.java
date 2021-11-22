@@ -34,12 +34,14 @@ public class Encoder {
     private int mWidth;
     private int mHeight;
     private int mDensityDpi;
-    private boolean isSaveLocal = false;
     private boolean isQuitting = false;
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private static final long TIMEOUT_US = 33333;
     private DataSender mDatasender = new DataSender();
 
+
+    // for test 测试用，验证编码后的数据是否正常
+    private boolean isSaveLocal = false;
     //    private String videoPath = "sdcard/mediacodecVideo.h264";
     private static final String videoPath = "/sdcard/source.h264";
 
@@ -115,20 +117,6 @@ public class Encoder {
 
 //        encodeAsync();
 //        encodeStart();
-        if (isSaveLocal) {
-            if (mVideoStream == null) {
-                File videoFile = new File(videoPath);
-                if (videoFile.exists()) {
-                    videoFile.delete();
-                }
-                try {
-                    videoFile.createNewFile();
-                    mVideoStream = new FileOutputStream(videoFile);
-                } catch (Exception e) {
-                    Log.w(TAG, e);
-                }
-            }
-        }
     }
 
     /**
@@ -195,14 +183,8 @@ public class Encoder {
                         buffer2.get(pps, 0, pps.length);
                         Log.i(TAG, "mCaptureThread sps = " + sps.toString() + ", len:" + sps.length);
                         Log.i(TAG, "mCaptureThread pps = " + pps.toString() + ", len:" + pps.length);
-                        if (mVideoStream != null) {
-                            try {
-                                mVideoStream.write(sps);
-                                mVideoStream.write(pps);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
+                        writeVideo(sps);
+                        writeVideo(pps);
                         mDatasender.sendData(0, sps, 0, sps.length);
                         mDatasender.sendData(1, pps, 0, pps.length);
                     } else if (index == MediaCodec.INFO_TRY_AGAIN_LATER) {
@@ -221,13 +203,7 @@ public class Encoder {
                         }
                         byte[] buff = new byte[mBufferInfo.size];
                         encodedData.get(buff);
-                        if (mVideoStream != null) {
-                            try {
-                                mVideoStream.write(buff, 0, mBufferInfo.size);
-                            } catch (Exception e) {
-                                Log.w(TAG, e);
-                            }
-                        }
+                        writeVideo(buff);
                         mDatasender.sendData(2, buff, 0, mBufferInfo.size);
 
                         encodedData.clear();
@@ -235,13 +211,7 @@ public class Encoder {
                     }
                 }
                 Log.i(TAG, "encodeStart stop");
-                if (mVideoStream != null) {
-                    try {
-                        mVideoStream.close();
-                    } catch (IOException e) {
-                        Log.w(TAG, e);
-                    }
-                }
+                stopWriteVideo();
                 mDatasender.close();
 
             }
@@ -299,5 +269,44 @@ public class Encoder {
 
     public interface OnCaptureVideoCallback {
         void onCaptureVideoCallback(byte[] bytes);
+    }
+
+
+    private void writeVideo(byte[] bytes) {
+        if(!isSaveLocal){
+            return;
+        }
+        Log.i(TAG, "writeVideo");
+        if (mVideoStream == null) {
+            File videoFile = new File(videoPath);
+            if (videoFile.exists()) {
+                videoFile.delete();
+            }
+            try {
+                videoFile.createNewFile();
+                mVideoStream = new FileOutputStream(videoFile);
+            } catch (Exception e) {
+                Log.w(TAG, e);
+            }
+        }
+        try {
+            mVideoStream.write(bytes);
+        } catch (Exception e) {
+            Log.w(TAG, e);
+        }
+    }
+
+    private void stopWriteVideo() {
+        if(!isSaveLocal){
+            return;
+        }
+        Log.i(TAG, "stopWriteVideo");
+        if (mVideoStream != null) {
+            try {
+                mVideoStream.close();
+            } catch (IOException e) {
+                Log.w(TAG, e);
+            }
+        }
     }
 }

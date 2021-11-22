@@ -32,6 +32,12 @@ public class EncodeActivity extends Activity {
     private Encoder mScreenCapture;
     private Button mStop;
 
+
+    // for test 测试用，验证编码后的数据是否正常
+    private boolean isSaveLocal = false;
+    private String videoPath = "sdcard/mc_video.h264";
+    private OutputStream mVideoStream;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -89,7 +95,6 @@ public class EncodeActivity extends Activity {
         }
         DisplayMetrics dm = getResources().getDisplayMetrics();
         mScreenCapture = new Encoder(dm.widthPixels, dm.heightPixels,dm.densityDpi, mediaProjection);
-//        mScreenCapture = new Encoder(592, 1080, mediaProjection);
         mScreenCapture.setOnCaptureVideoCallback(mVideoCallback);
         mScreenCapture.startCapture();
     }
@@ -100,19 +105,14 @@ public class EncodeActivity extends Activity {
         @Override
         public void onCaptureVideoCallback(byte[] buf) {
             count++;
-            Log.i(TAG, "onCaptureVideoCallback count:" + count);
-//            byte[] bytes = new byte[buf.length + 4];
-//            byte[] head = CodecUtils.intToBytes(buf.length);
             Log.i(TAG,"onCaptureVideoCallback  frameLen " + buf.length + "/" + count);
-//            System.arraycopy(head, 0, bytes, 0, head.length);
-//            System.arraycopy(buf, 0, bytes, head.length, buf.length);
-//            writeVideo(buf);
         }
     };
-    private String videoPath = "sdcard/mc_video.h264";
-    private OutputStream mVideoStream;
 
     private void writeVideo(byte[] bytes) {
+        if(!isSaveLocal){
+            return;
+        }
         Log.i(TAG, "writeVideo");
         if (mVideoStream == null) {
             File videoFile = new File(videoPath);

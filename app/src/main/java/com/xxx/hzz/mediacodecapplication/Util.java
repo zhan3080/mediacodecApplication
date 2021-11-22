@@ -1,11 +1,20 @@
 package com.xxx.hzz.mediacodecapplication;
 
+
+// 工具类
 public class Util {
     public static final String TAG = "Util";
 
+
+    /**
+     * 把int数保存到byte数组
+     *
+     * @param data
+     * @return byte[]
+     */
     public static byte[] getByte(int data) {
         byte[] len = new byte[4];
-        // 从地位到高位保存int的值
+        // 从低位到高位保存int的值
         len[0] = (byte) (data & 0xff);
         len[1] = (byte) (data >> 8 & 0xff);
         len[2] = (byte) (data >> 16 & 0xff);

@@ -14,17 +14,25 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 
+
+// 接收端数据接收线程
 public class DataReceiverThread extends Thread {
     public static final String TAG = "DataReceiverThread";
+    // 镜像数据接收服务端socket
     public ServerSocket mSocket = null;
+    // 镜像数据端口
     private static final int SERVER_PORT = 8010;
-    private static final String SERVER_IP = "192.168.205.103";
-    private OutputStream mOutputStream = null;
     private InputStream mInputStream = null;
+    // 数据接收端监听器（数据接收线程接收到数据后，回调给h264播放器播放）
+    private IReceiveDataCallback dataCallback = null;
+
+
+    // for test测试调试用，验证接收到的数据是否能正确播放，正常情况下，使用ffplay tmp.h264应该能正常播放
+    // 是否保存h264到本地文件
+    private boolean isSaveLocal = false;
+    // h264本地保存路径
     private static final String videoPath = "/sdcard/test/tmp.h264";
     private OutputStream mVideoStream = null;
-    private boolean isSaveLocal = false;
-    private IReceiveDataCallback dataCallback = null;
 
     @Override
     public void interrupt() {
@@ -52,6 +60,7 @@ public class DataReceiverThread extends Thread {
                     Log.i(TAG, "accept mSocket:" + mSocket);
                     Socket socket = mSocket.accept();
                     Log.i(TAG, "accept " + socket.getInetAddress());
+                    //阻塞接收
                     receveData(socket);
                 }
             } catch (Exception e) {
@@ -60,6 +69,7 @@ public class DataReceiverThread extends Thread {
         }
     }
 
+    // 根据头信息，解析当前数据类型
     int getDataType(byte[] data){
         if(data.length != 8){
             return -1;
@@ -80,6 +90,7 @@ public class DataReceiverThread extends Thread {
         return -1;
     }
 
+    // 根据头信息，解析当前数据包长度
     int getDataLen(byte[] data){
         if(data.length != 8){
             return -1;
@@ -87,6 +98,7 @@ public class DataReceiverThread extends Thread {
         return Util.getInt(data,4);
     }
 
+    // 数据接收处理
     void receveData(Socket socket) {
         if (socket == null) {
             return;
@@ -105,6 +117,7 @@ public class DataReceiverThread extends Thread {
         while (!socket.isClosed()) {
             try{
                 cursor = 0;
+                // 先读取头信息（8个字节长度）
                 while (((numberOfBytesRead = mInputStream.read(head, cursor, 8 - cursor)) != -1) && !socket.isClosed()) {
 //                    Log.i(TAG, "receveData read numberOfBytesRead:" + numberOfBytesRead);
                     cursor = cursor + numberOfBytesRead;
@@ -125,6 +138,7 @@ public class DataReceiverThread extends Thread {
 //            Log.i(TAG, "receveData frameSize:" + frameSize);
             try {
                 cursor = 0;
+                // 从头信息里解析出实际数据包长度frameSize，阻塞读取指定长度的数据包，防止视频帧数据错乱
                 while (((numberOfBytesRead = mInputStream.read(buffer, cursor, frameSize - cursor)) != -1) && !socket.isClosed()) {
                     cursor = cursor + numberOfBytesRead;
                     if (cursor >= frameSize)
@@ -133,7 +147,6 @@ public class DataReceiverThread extends Thread {
 //                Log.i(TAG, "receveData cursor:" + cursor);
                 frameBuffer = new byte[frameSize];
                 System.arraycopy(buffer,0,frameBuffer,0,frameSize);
-                writeToFile(frameBuffer);
                 dispatchData(type, frameBuffer);
                 sleep(10);
             } catch (Exception e) {
@@ -172,10 +185,12 @@ public class DataReceiverThread extends Thread {
 
     byte sps[];
     byte pps[];
+    // type：0-sps 1-sps 2-i或者p帧
     void dispatchData(int type, byte[] data) {
         if(data.length <= 0 || type < 0){
             return;
         }
+        writeToFile(data);
 
         switch (type){
             case 0:

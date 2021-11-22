@@ -14,16 +14,21 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+// 发送端数据发送线程
 public class DataSender extends Thread{
     public static final String TAG = "DataSender";
-    private static final int SERVER_PORT = 8010;
-    private static final String SERVER_IP = "192.168.205.111";
     private Socket mSocket = null;
     private OutputStream mOutputStream = null;
 
+
+    // todo 方便测试，当前写死ip及端口
+    private static final int SERVER_PORT = 8010;
+    private static final String SERVER_IP = "192.168.205.111";
+    
+    // for test 方便测试，编码后、发送前的数据是否有问题
     // 保存本地文件
     private static final String videoPath = "/sdcard/sendData.h264";
-    private OutputStream mSendStream = null;
+    private OutputStream mVideoStream = null;
     private boolean isSaveLocal = false;
 
     @Override
@@ -33,28 +38,37 @@ public class DataSender extends Thread{
 
     private void init(){
         try {
-//            mSocket = new Socket(SERVER_IP, SERVER_PORT);
             mSocket = new Socket();
             mSocket.connect(new InetSocketAddress(SERVER_IP, SERVER_PORT), 5000);
             Log.i(TAG,"init connect mSocket: " + mSocket);
             mOutputStream = mSocket.getOutputStream();
-            if (isSaveLocal) {
-                Log.i(TAG,"init mSendStream: " + mSendStream);
-                if (mSendStream == null) {
-                    File videoFile = new File(videoPath);
-                    if (videoFile.exists()) {
-                        videoFile.delete();
-                    }
-                    try {
-                        videoFile.createNewFile();
-                        mSendStream = new FileOutputStream(videoFile);
-                    } catch (Exception e) {
-                        Log.w(TAG, e);
-                    }
-                }
-            }
         }catch (Exception e){
             e.printStackTrace();
+        }
+    }
+
+    void writeToFile(byte[] data) {
+        if (!isSaveLocal) {
+            return;
+        }
+        if (mVideoStream == null) {
+            File videoFile = new File(videoPath);
+            if (videoFile.exists()) {
+                videoFile.delete();
+            }
+            try {
+                videoFile.createNewFile();
+                mVideoStream = new FileOutputStream(videoFile);
+            } catch (Exception e) {
+                Log.w(TAG, e);
+                return;
+            }
+        }
+        try {
+            Log.i(TAG, "writeToFile datalen:" + data.length);
+            mVideoStream.write(data);
+        } catch (Exception e) {
+            Log.w(TAG, e);
         }
     }
 
@@ -65,7 +79,10 @@ public class DataSender extends Thread{
         return true;
     }
 
-
+    // 发送具体视频数据前，先组装并发送数据头，在发送实际真实帧数据
+    // 目前数据头简单定义：
+    // 8个字节长度，前三位固定0x50,0x4f,0x53, 第四位是视频数据类型，
+    // 第5～8位为帧数据长度，从低到高位保存32位的int数据
     public void sendData(int type , byte[] data, int off, int len){
         byte[] b = Util.getByte(len);
         switch (type){
@@ -82,14 +99,7 @@ public class DataSender extends Thread{
                 sendData(dataHead,0,8);
                 break;
         }
-        if (mSendStream != null) {
-//            Log.i(TAG, "sendData write off = " + off + ", len:" + len + ", mSocket:" + mSocket);
-            try {
-                mSendStream.write(data);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+        writeToFile(data);
         sendData(data,off,len);
 
     }
@@ -108,24 +118,6 @@ public class DataSender extends Thread{
         }
         try {
             mOutputStream.write(data,off,len);
-        }catch (Exception e){
-            Log.w(TAG, "write " + e);
-        }
-    }
-
-    public void sendData(byte[] data){
-        if(mSocket == null){
-            return;
-        }
-        if(mOutputStream == null){
-            try {
-                mOutputStream = mSocket.getOutputStream();
-            }catch (Exception e){
-                Log.w(TAG,e);
-            }
-        }
-        try {
-            mOutputStream.write(data);
         }catch (Exception e){
             Log.w(TAG, "write " + e);
         }
@@ -152,9 +144,9 @@ public class DataSender extends Thread{
             }
         }
         mSocket = null;
-        if (mSendStream != null) {
+        if (mVideoStream != null) {
             try {
-                mSendStream.close();
+                mVideoStream.close();
             } catch (IOException e) {
                 Log.w(TAG, e);
             }

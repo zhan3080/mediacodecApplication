@@ -128,7 +128,7 @@ public class DecodeActivity extends Activity {
         }
     };
 
-
+    // 播放本地h264文件
     private void renderToSurface() {
         byte[] mTest264;
         Log.i(TAG, "renderToSurface TEST_VIDEO = " + TEST_VIDEO);
