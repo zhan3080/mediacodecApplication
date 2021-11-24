@@ -1,0 +1,33 @@
+
+一、录屏步骤
+1、获取MediaProjectionManager（getSystemService）
+2、录屏申请（createScreenCaptureIntent）
+    Intent intent = mediaProjectionManager.createScreenCaptureIntent();
+    startActivityForResult(intent, REQUEST_CODE);
+3、申请同意后，获取到mediaProjection（ProjectionManager.getMediaProjection）
+4、创建VirtualDisplay（createVirtualDisplay）
+   创建VirtualDisplay需要传入surface，先初始化并配置编码器mediacodec，从mediacodec获取到surface，参考Encoder
+   如果想实现截一张图保存下来，也是需要surface（一般是通过ImageReader获取到surface），参考CaptureImageActivity
+
+二、编码
+1、创建VirtualDisplay后就可以启动线程，从mediacodec里获取到编码后到数据sps pps 图像帧数据（Codec.dequeueOutputBuffer）
+
+三、数据发送（tcp）
+数据传输协议：8字节数据头+实际数据
+前三位：固定0x50,0x4f,0x53
+第四位：视频数据类型（0x50-sps、0x51-pps、0x52-i帧或者p帧）
+5～8位：帧数据长度，从低到高位保存32位的int数据（转换函数getByte getInt）
+
+四、数据接收
+数据头是为了区分读取到的数据类型，并且保证读取到完整数据包
+1、先读取8位字节，判断出帧类型，并且算出帧长度（保证读取完整包）
+2、读取到sps、pps后开始初始化并配置解码器mediacodec，并启动解码器mediacodec.start
+
+五、解码
+1、mMC.dequeueInputBuffer获取到buffer列表的index，通过index得到输入buffer（ mMC.getInputBuffer(inputBufferIndex)）
+2、把帧数据copy到bufer里
+3、把buffer放回到队列里mMC.queueInputBuffer
+
+六、渲染（在启动编码器后，同时启动渲染线程startDrawThread）
+1、while循环里获取解码输出队列到index（mMC.dequeueOutputBuffer）
+2、释放buffer（mMC.releaseOutputBuffer）后，对应到数据帧就渲染在surface上

@@ -26,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private Button button1;
     private Button button2;
+    private Button button3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,7 +46,16 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(new Intent(MainActivity.this,DecodeActivity.class));
             }
         });
+        button3 = findViewById(R.id.capture);
+        button3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this,CaptureImageActivity.class));
+            }
+        });
         checkSelf(getApplicationContext());
+
+        UsbMux usbMux = new UsbMux(this);
     }
 
     private void checkSelf(Context mContext){

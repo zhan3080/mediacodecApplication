@@ -19,6 +19,11 @@
            android:layout_width="wrap_content"
            android:layout_height="wrap_content"
            android:text="播放"/>
+        <Button
+            android:id="@+id/capture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="截屏"/>
     </LinearLayout>
 
 </android.support.constraint.ConstraintLayout>
